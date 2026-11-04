@@ -74,52 +74,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$pageTitle = 'Create Account';
+require __DIR__ . '/includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Create Account</title>
-</head>
-<body>
-    <h1>Create Account</h1>
+<div class="row justify-content-center">
+    <div class="col-sm-10 col-md-8 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-4 text-center">Create Account</h1>
 
-    <?php if ($errors): ?>
-        <ul style="color: red;">
-            <?php foreach ($errors as $error): ?>
-                <li><?= htmlspecialchars($error) ?></li>
-            <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
+                <?php require __DIR__ . '/includes/errors.php'; ?>
 
-    <form method="post" action="register.php">
-        <p>
-            <label>First name<br>
-            <input type="text" name="first_name" value="<?= htmlspecialchars($old['first_name']) ?>" required></label>
-        </p>
-        <p>
-            <label>Last name<br>
-            <input type="text" name="last_name" value="<?= htmlspecialchars($old['last_name']) ?>" required></label>
-        </p>
-        <p>
-            <label>Email<br>
-            <input type="email" name="email" value="<?= htmlspecialchars($old['email']) ?>" required></label>
-        </p>
-        <p>
-            <label>Username<br>
-            <input type="text" name="username" value="<?= htmlspecialchars($old['username']) ?>" required></label>
-        </p>
-        <p>
-            <label>Password<br>
-            <input type="password" name="password" minlength="8" required></label>
-        </p>
-        <p>
-            <label>Confirm password<br>
-            <input type="password" name="confirm_password" minlength="8" required></label>
-        </p>
-        <button type="submit">Create Account</button>
-    </form>
+                <form method="post" action="register.php">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label">First name</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name"
+                                   value="<?= htmlspecialchars($old['first_name']) ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label">Last name</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name"
+                                   value="<?= htmlspecialchars($old['last_name']) ?>" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email"
+                                   value="<?= htmlspecialchars($old['email']) ?>" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username"
+                                   value="<?= htmlspecialchars($old['username']) ?>" required>
+                            <div class="form-text">3-30 letters, numbers, or underscores.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" minlength="8" required>
+                            <div class="form-text">At least 8 characters.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirm_password" class="form-label">Confirm password</label>
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" minlength="8" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-success w-100">Create Account</button>
+                        </div>
+                    </div>
+                </form>
 
-    <p>Already have an account? <a href="login.php">Log in</a></p>
-</body>
-</html>
+                <p class="text-center mt-3 mb-0">Already have an account? <a href="login.php">Log in</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+<?php require __DIR__ . '/includes/footer.php'; ?>

@@ -16,17 +16,16 @@ $stmt = $pdo->prepare(
 );
 $stmt->execute([$_SESSION['user_id']]);
 $firstName = $stmt->fetchColumn();
+
+$pageTitle = 'Welcome';
+require __DIR__ . '/includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Welcome</title>
-</head>
-<body>
-    <h1>Welcome, <?= htmlspecialchars($firstName) ?>!</h1>
-    <p>Logged in as <strong><?= htmlspecialchars($_SESSION['username']) ?></strong>
-       (role: <?= htmlspecialchars($_SESSION['role']) ?>)</p>
-    <p><a href="logout.php">Log out</a></p>
-</body>
-</html>
+<div class="p-5 mb-4 bg-body-tertiary rounded-3">
+    <h1 class="display-5 fw-bold">Welcome, <?= htmlspecialchars($firstName) ?>!</h1>
+    <p class="lead">You're logged in as <strong><?= htmlspecialchars($_SESSION['username']) ?></strong>
+       (<?= htmlspecialchars($_SESSION['role']) ?>).</p>
+    <?php if ($_SESSION['role'] === 'admin'): ?>
+        <a class="btn btn-success btn-lg" href="admin/index.php"><i class="bi bi-gear"></i> Admin panel</a>
+    <?php endif; ?>
+</div>
+<?php require __DIR__ . '/includes/footer.php'; ?>

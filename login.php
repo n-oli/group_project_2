@@ -32,36 +32,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Same message whether the username or the password was wrong
     $error = 'Invalid username or password.';
 }
+
+$pageTitle = 'Log In';
+require __DIR__ . '/includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Log In</title>
-</head>
-<body>
-    <h1>Log In</h1>
+<div class="row justify-content-center">
+    <div class="col-sm-10 col-md-6 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-4 text-center">Log In</h1>
 
-    <?php if (isset($_GET['registered'])): ?>
-        <p style="color: green;">Account created. You can log in now.</p>
-    <?php endif; ?>
+                <?php if (isset($_GET['registered'])): ?>
+                    <div class="alert alert-success">Account created. You can log in now.</div>
+                <?php endif; ?>
 
-    <?php if ($error): ?>
-        <p style="color: red;"><?= htmlspecialchars($error) ?></p>
-    <?php endif; ?>
+                <?php if ($error): ?>
+                    <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                <?php endif; ?>
 
-    <form method="post" action="login.php">
-        <p>
-            <label>Username<br>
-            <input type="text" name="username" value="<?= htmlspecialchars($username) ?>" required></label>
-        </p>
-        <p>
-            <label>Password<br>
-            <input type="password" name="password" required></label>
-        </p>
-        <button type="submit">Log In</button>
-    </form>
+                <form method="post" action="login.php">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               value="<?= htmlspecialchars($username) ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Log In</button>
+                </form>
 
-    <p>No account yet? <a href="register.php">Create one</a></p>
-</body>
-</html>
+                <p class="text-center mt-3 mb-0">No account yet? <a href="register.php">Create one</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+<?php require __DIR__ . '/includes/footer.php'; ?>
