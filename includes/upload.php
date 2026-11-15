@@ -69,3 +69,46 @@ function save_image(string $field, string $folder): ?string
     // later:  <img src="(app_url of that path)">
     return "uploads/$folder/$name";
 }
+
+// Saves an uploaded audio file into uploads/<folder>/ and returns its path for the database,
+// e.g. "uploads/songs/3f9a1c0b7d2e4a51.mp3". Returns null when no file was chosen.
+function save_audio(string $field, string $folder): ?string
+{
+    $file = $_FILES[$field] ?? null;
+    if ($file === null || $file['error'] === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('The upload failed. The file might be too large.');
+    }
+    if ($file['size'] > 20 * 1024 * 1024) {
+        throw new RuntimeException('Audio files must me equal to 20 MB or smaller.');
+    }
+
+    // Check the file's real contents, not its name
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    // maping of audio detected audio file formats to filename extensions
+    $extensions = [
+        'audio/mpeg'  => 'mp3',
+        'audio/mp3'   => 'mp3',
+        'audio/ogg'   => 'ogg',
+        'audio/wav'   => 'wav',
+        'audio/x-wav' => 'wav',
+    ];
+    if (!isset($extensions[$mime])) {
+        throw new RuntimeException('Only MP3, OGG or WAV audio files are allowed.');
+    }
+    // checks if our upload directory exist in server else creates new folder names uploads
+    $dir = __DIR__ . '/../uploads/' . $folder;
+    if (!is_dir($dir)) {
+        mkdir($dir, 0775, true);
+    }
+
+    // Using Random name so two uploads with the same filename never overwrite each other
+    $name = bin2hex(random_bytes(8)) . '.' . $extensions[$mime];
+    if (!move_uploaded_file($file['tmp_name'], "$dir/$name")) {
+        throw new RuntimeException('Could not save the audio file.');
+    }
+    // finnaly returns path of file saved for database
+    return "uploads/$folder/$name";
+}
