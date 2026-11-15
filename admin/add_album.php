@@ -1,20 +1,42 @@
 <?php
+/**
+ * admin/add_album.php - form to add an album (name, artist, optional genre,
+ * release date, track count and cover image).
+ *
+ * All three admin "add" pages follow the same recipe:
+ * 1. require_user('admin') - only admins get past this line.
+ * 2. Load the choices for the dropdowns from the database.
+ * 3. If the form was submitted (POST): tidy the input, validate it, and
+ * either insert the row and redirect, or collect messages in $errors.
+ * 4. Print the form. $old refills the fields after an error.
+ *
+ * If there are no artists yet, the page shows a hint to add one first
+ * instead of the form.
+ */
 require_once __DIR__ . '/../includes/auth.php';
-require __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/upload.php';
-require_admin();
+$user = require_user('admin');
 
+// Choices for the two dropdowns.
 $artists = $pdo->query('SELECT artist_id, artist_name FROM artists ORDER BY artist_name')->fetchAll();
 $genres  = $pdo->query('SELECT genre_id, genre_name FROM genres ORDER BY genre_name')->fetchAll();
 
+// array_column($rows, 'artist_name', 'artist_id') turns the list of rows
+// into a simple [id => name] array, e.g. [3 => 'Burna Boy', 7 => 'Adele'].
+// We must re-check ids on the server because anyone can edit the HTML of a
+// dropdown in their browser and submit an id that does not exist.
 // id => name lookups, used to check that submitted ids are real
 $artistNames = array_column($artists, 'artist_name', 'artist_id');
 $genreNames  = array_column($genres, 'genre_name', 'genre_id');
 
+// $errors = messages to show; $old = what the admin typed (to refill the form).
+// The keys of $old are exactly the form's field names.
 $errors = [];
 $old = ['album_name' => '', 'artist_id' => '', 'genre_id' => '', 'release_date' => '', 'total_tracks' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Read every field named in $old from the submitted form, trimming spaces.
     foreach ($old as $key => $value) {
         $old[$key] = trim($_POST[$key] ?? '');
     }
@@ -22,12 +44,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($old['album_name'] === '') {
         $errors[] = 'Album name is required.';
     }
+
+    // (int) turns the submitted text into a number; isset() checks that an
+    // artist with that id really exists.
     if (!isset($artistNames[(int) $old['artist_id']])) {
         $errors[] = 'Choose an artist.';
     }
     if ($old['genre_id'] !== '' && !isset($genreNames[(int) $old['genre_id']])) {
         $errors[] = 'Choose a valid genre.';
     }
+
+    // Optional fields are only validated when something was entered.
     if ($old['release_date'] !== '' && !DateTime::createFromFormat('Y-m-d', $old['release_date'])) {
         $errors[] = 'Release date is not a valid date.';
     }
@@ -37,12 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors) {
         try {
+            // Store the cover (if any) and get back the path to save. See includes/upload.php.
             $coverPath = save_image('cover_art', 'albums');
 
             $stmt = $pdo->prepare(
                 'INSERT INTO albums (album_name, release_date, artist_id, genre_id, total_tracks, cover_art)
                  VALUES (?, ?, ?, ?, ?, ?)'
             );
+
+            // The values line up, in order, with the six "?" placeholders above.
+            // Empty optional fields are saved as NULL.
             $stmt->execute([
                 $old['album_name'],
                 $old['release_date'] !== '' ? $old['release_date'] : null,
@@ -52,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $coverPath,
             ]);
 
+            // Redirect after saving so a page refresh cannot add the album twice.
             header('Location: add_album.php?added=' . urlencode($old['album_name']));
             exit;
         } catch (PDOException $e) {
@@ -62,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// ---------- HTML starts here ----------
 $pageTitle = 'Add Album';
 require __DIR__ . '/../includes/header.php';
 ?>
@@ -78,6 +111,7 @@ require __DIR__ . '/../includes/header.php';
             <div class="card-body p-4">
                 <h1 class="h3 mb-4"><i class="bi bi-disc"></i> Add Album</h1>
 
+                <?php // An album needs an artist, so with zero artists we show a hint instead of the form. ?>
                 <?php if (!$artists): ?>
                     <div class="alert alert-info mb-0">
                         No artists yet. <a href="add_artist.php" class="alert-link">Add an artist first.</a>
@@ -90,6 +124,7 @@ require __DIR__ . '/../includes/header.php';
 
                     <?php require __DIR__ . '/../includes/errors.php'; ?>
 
+                    <?php // enctype="multipart/form-data" is required for the cover image upload. ?>
                     <form method="post" action="add_album.php" enctype="multipart/form-data">
                         <div class="row g-3">
                             <div class="col-12">
@@ -101,6 +136,7 @@ require __DIR__ . '/../includes/header.php';
                                 <label for="artist_id" class="form-label">Artist</label>
                                 <select class="form-select" id="artist_id" name="artist_id" required>
                                     <option value="">-- choose --</option>
+                                    <?php // One <option> per artist. "selected" re-picks the previous choice when the form is shown again after an error. ?>
                                     <?php foreach ($artists as $artist): ?>
                                         <option value="<?= $artist['artist_id'] ?>" <?= (int) $old['artist_id'] === (int) $artist['artist_id'] ? 'selected' : '' ?>>
                                             <?= htmlspecialchars($artist['artist_name']) ?>
