@@ -1,0 +1,4 @@
+/* Site-specific styles that sit on top of Bootstrap.
+   Keep this small: reach for a Bootstrap class first, add a rule here only when none fits. */
+.navbar-brand .bi { color: var(--bs-success); }
+details > summary { cursor: pointer; font-weight: 600; }

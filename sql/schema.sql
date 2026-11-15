@@ -3,16 +3,35 @@
 -- Run in phpMyAdmin (SQL tab or Import) or:  mysql -u root < sql/schema.sql
 -- WARNING: drops and recreates music_player, so any data in it is lost.
 
+-- HOW TO READ THIS FILE
+-- - Each CREATE TABLE is one "spreadsheet" of data.
+-- - PRIMARY KEY      = the column that uniquely identifies a row.
+-- - AUTO_INCREMENT   = MySQL fills in 1, 2, 3... for you.
+-- - FOREIGN KEY      = "this column must match a row in another table".
+-- - UNIQUE           = no two rows may share this value.
+-- - NOT NULL         = the column may not be left empty.
+-- - ON DELETE CASCADE = when the parent row is deleted, delete these rows too.
+-- - Tables are created parents-first, because a table can only point to
+-- tables that already exist.
+--
+-- HOW THE TABLES CONNECT
+-- roles 1--* users *--1 contacts          users 1--1 credentials
+-- artists 1--* albums 1--* songs          genres 1--* albums / songs
+-- users 1--* playlists *--* songs (through playlist_songs)
+-- users *--* songs through favorites, listening_history and searches
 DROP DATABASE IF EXISTS music_player;
 CREATE DATABASE music_player CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE music_player;
 
 -- ===== Auth side =====
+-- What kind of account it is. Only two rows, added at the bottom of this file.
 CREATE TABLE roles (
   role_id    INT AUTO_INCREMENT PRIMARY KEY,
   role_type  VARCHAR(255) NOT NULL UNIQUE          -- 'listener', 'admin'
 ) ENGINE=InnoDB;
 
+-- A person's name and contact details. Email must be unique (one account per
+-- email). Everything after email is optional and filled in from register.php.
 CREATE TABLE contacts (
   contact_id INT AUTO_INCREMENT PRIMARY KEY,
   first_name VARCHAR(255) NOT NULL,
@@ -27,6 +46,8 @@ CREATE TABLE contacts (
   updated    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+-- The account itself: ties one contact to one role. Other tables (playlists,
+-- favorites...) point at user_id.
 CREATE TABLE users (
   user_id       INT AUTO_INCREMENT PRIMARY KEY,
   role_id       INT NOT NULL,
@@ -36,6 +57,8 @@ CREATE TABLE users (
   FOREIGN KEY (contact_id) REFERENCES contacts(contact_id)
 ) ENGINE=InnoDB;
 
+-- Login details, kept apart from the rest. The username is the primary key,
+-- and the password is stored only as a hash (never the real password).
 CREATE TABLE credentials (
   username      VARCHAR(255) PRIMARY KEY,
   user_id       INT NOT NULL UNIQUE,
@@ -44,6 +67,7 @@ CREATE TABLE credentials (
 ) ENGINE=InnoDB;
 
 -- ===== Music side =====
+-- Singers and bands. Added from admin/add_artist.php.
 CREATE TABLE artists (
   artist_id     INT AUTO_INCREMENT PRIMARY KEY,
   artist_name   VARCHAR(255) NOT NULL,
@@ -51,11 +75,13 @@ CREATE TABLE artists (
   bio           TEXT
 ) ENGINE=InnoDB;
 
+-- Fixed list of music styles used in dropdowns. Starter rows are at the bottom of this file.
 CREATE TABLE genres (
   genre_id   INT AUTO_INCREMENT PRIMARY KEY,
   genre_name VARCHAR(100) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
+-- A collection of songs by one artist. Added from admin/add_album.php.
 CREATE TABLE albums (
   album_id     INT AUTO_INCREMENT PRIMARY KEY,
   album_name   VARCHAR(255) NOT NULL,
@@ -68,6 +94,9 @@ CREATE TABLE albums (
   FOREIGN KEY (genre_id)  REFERENCES genres(genre_id)
 ) ENGINE=InnoDB;
 
+-- One track. Album and genre are optional (a single has no album).
+-- Added from admin/add_song.php.
+-- NOTE: there is no column for the audio file yet; the player will need one.
 CREATE TABLE songs (
   song_id       INT AUTO_INCREMENT PRIMARY KEY,
   song_title    VARCHAR(255) NOT NULL,
@@ -81,6 +110,7 @@ CREATE TABLE songs (
   FOREIGN KEY (genre_id)  REFERENCES genres(genre_id)
 ) ENGINE=InnoDB;
 
+-- A named list of songs owned by one user. (No pages use this yet.)
 CREATE TABLE playlists (
   playlist_id   INT AUTO_INCREMENT PRIMARY KEY,
   playlist_name VARCHAR(100) NOT NULL,
@@ -98,6 +128,7 @@ CREATE TABLE playlist_songs (                      -- links playlists <-> songs
   FOREIGN KEY (song_id)     REFERENCES songs(song_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Songs a user has liked. (No pages use this yet.)
 CREATE TABLE favorites (
   favorite_id INT AUTO_INCREMENT PRIMARY KEY,
   user_id     INT NOT NULL,
@@ -108,6 +139,7 @@ CREATE TABLE favorites (
   FOREIGN KEY (song_id) REFERENCES songs(song_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- One row every time a user plays a song. (No pages use this yet.)
 CREATE TABLE listening_history (
   history_id INT AUTO_INCREMENT PRIMARY KEY,
   user_id    INT NOT NULL,
@@ -117,6 +149,7 @@ CREATE TABLE listening_history (
   FOREIGN KEY (song_id) REFERENCES songs(song_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- What users searched for, to power suggestions later. (No pages use this yet.)
 CREATE TABLE searches (
   search_id    INT AUTO_INCREMENT PRIMARY KEY,
   user_id      INT NOT NULL,
@@ -128,5 +161,6 @@ CREATE TABLE searches (
 ) ENGINE=InnoDB;
 
 -- ===== Seed data =====
+-- The app expects exactly these two role names (see includes/auth.php).
 INSERT INTO roles (role_type) VALUES ('listener'), ('admin');
 INSERT INTO genres (genre_name) VALUES ('Hip-Hop'), ('Pop'), ('Afrobeats'), ('Rock');
