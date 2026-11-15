@@ -18,6 +18,7 @@
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/upload.php';
 $user = require_user('admin');
 
 // Choices for the three dropdowns. Albums also fetch their artist so the
@@ -82,29 +83,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
-        try {
-            $stmt = $pdo->prepare(
-                'INSERT INTO songs (song_title, artist_id, album_id, genre_id, release_date, song_duration)
-                 VALUES (?, ?, ?, ?, ?, ?)'
-            );
+                try {
+            // Stores the audio file first
+            $audioPath = save_audio('audio_file', 'songs');
+            if ($audioPath === null) {
+                throw new RuntimeException('Choose an audio file.');
+            }
 
-            // The values line up, in order, with the six "?" placeholders above.
+            $stmt = $pdo->prepare(
+                'INSERT INTO songs (song_title, artist_id, album_id, genre_id, release_date, song_duration, audio_file)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
             $stmt->execute([
                 $old['song_title'],
                 (int) $old['artist_id'],
                 $old['album_id'] !== '' ? (int) $old['album_id'] : null,
                 $old['genre_id'] !== '' ? (int) $old['genre_id'] : null,
                 $old['release_date'] !== '' ? $old['release_date'] : null,
-
-                // Length is stored in seconds: 3 min 35 sec -> 215.
                 $minutes * 60 + $seconds,
+                $audioPath,
             ]);
 
-            // Redirect after saving so a page refresh cannot add the song twice.
             header('Location: add_song.php?added=' . urlencode($old['song_title']));
             exit;
         } catch (PDOException $e) {
             $errors[] = 'Could not save the song. Please try again.';
+        } catch (RuntimeException $e) {
+            $errors[] = $e->getMessage(); // upload problems from save_audio()
         }
     }
 }
@@ -139,8 +144,13 @@ require __DIR__ . '/../includes/header.php';
 
                     <?php require __DIR__ . '/../includes/errors.php'; ?>
 
-                    <form method="post" action="add_song.php">
+                    <form method="post" action="add_song.php" enctype="multipart/form-data">
                         <div class="row g-3">
+                            <div class="col-12">
+                                <label for="audio_file" class="form-label">Audio file</label>
+                                <input type="file" class="form-control" id="audio_file" name="audio_file" accept="audio/*" required>
+                                <div class="form-text">MP3, OGG or WAV, up to 20 MB.</div>
+                            </div>
                             <div class="col-12">
                                 <label for="song_title" class="form-label">Song title</label>
                                 <input type="text" class="form-control" id="song_title" name="song_title"
@@ -209,4 +219,23 @@ require __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+<script>
+// this is helper javascirpt to extract length in seconds of uploaded audio file   
+// When a file is chosen, read its length and fill in the minutes/seconds boxes.
+document.getElementById('audio_file').addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.src = URL.createObjectURL(file);
+
+    audio.addEventListener('loadedmetadata', function () {
+        const total = Math.round(audio.duration);
+        document.getElementById('minutes').value = Math.floor(total / 60);
+        document.querySelector('input[name="seconds"]').value = total % 60;
+        URL.revokeObjectURL(audio.src);
+    });
+});
+</script>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

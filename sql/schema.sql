@@ -105,6 +105,7 @@ CREATE TABLE songs (
   genre_id      INT,
   release_date  DATE,
   song_duration INT NOT NULL,                      -- seconds
+  audio_file    VARCHAR(255),                      -- raw mp3 file
   FOREIGN KEY (artist_id) REFERENCES artists(artist_id),
   FOREIGN KEY (album_id)  REFERENCES albums(album_id),
   FOREIGN KEY (genre_id)  REFERENCES genres(genre_id)
