@@ -25,6 +25,8 @@ require_once __DIR__ . '/includes/db.php';
 // in when the form is shown again after a wrong password.
 $error = '';
 $username = '';
+$oauthError = $_SESSION['oauth_error'] ?? '';
+unset($_SESSION['oauth_error']);
 
 // REQUEST_METHOD is 'POST' when the form was submitted and 'GET' when the
 // page was simply opened. First check: a submitted form must carry our secret
@@ -90,6 +92,10 @@ require __DIR__ . '/includes/header.php';
                     <div class="alert alert-danger" role="alert"><?= escape($error) ?></div>
                 <?php endif; ?>
 
+                <?php if ($oauthError): ?>
+                    <div class="alert alert-danger" role="alert"><?= escape($oauthError) ?></div>
+                <?php endif; ?>
+
                 <form method="post" action="<?= escape(app_url('login.php')) ?>">
                     <?php // Hidden secret that proves this form came from our own page (CSRF protection). ?>
                     <input type="hidden" name="csrf_token" value="<?= escape(csrf_token()) ?>">
@@ -105,6 +111,10 @@ require __DIR__ . '/includes/header.php';
                     </div>
                     <button type="submit" class="btn btn-success w-100">Log in</button>
                 </form>
+                <div class="text-center text-secondary my-3">or</div>
+                <a href="<?= escape(app_url('oauth/google_start.php')) ?>" class="btn btn-outline-light w-100">
+                    <i class="bi bi-google me-2"></i>Continue with Google
+                </a>
 
                 <p class="text-center mt-3 mb-0">No account yet? <a href="<?= escape(app_url('register.php')) ?>">Create one</a></p>
             </div>

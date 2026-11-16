@@ -39,10 +39,10 @@ $recentSongs = $pdo->query(
 
 // Every account, built from the four "people" tables.
 $users = $pdo->query(
-    'SELECT u.user_id, ct.first_name, ct.last_name, ct.email, cr.username, r.role_type
+    'SELECT u.user_id, ct.first_name, ct.last_name, ct.email, COALESCE(cr.username, "(Google)") AS username, r.role_type
      FROM users u
      JOIN contacts ct ON ct.contact_id = u.contact_id
-     JOIN credentials cr ON cr.user_id = u.user_id
+     LEFT JOIN credentials cr ON cr.user_id = u.user_id
      JOIN roles r ON r.role_id = u.role_id
      ORDER BY u.user_id'
 )->fetchAll();

@@ -40,11 +40,11 @@ function current_user()
     // account. The "?" is a placeholder: the real id is sent separately in
     // execute(), so user input can never change the SQL itself (no SQL injection).
     $stmt = $pdo->prepare(
-        'SELECT u.user_id, u.creation_date, cr.username, r.role_type,
+        'SELECT u.user_id, u.creation_date, COALESCE(cr.username, ct.first_name) AS username, r.role_type,
                 ct.first_name, ct.last_name, ct.email, ct.phone,
                 ct.street_1, ct.street_2, ct.city, ct.state_code, ct.post_code
          FROM users u
-         JOIN credentials cr ON cr.user_id = u.user_id
+         LEFT JOIN credentials cr ON cr.user_id = u.user_id  -- LEFT: Google-only users have no credentials row
          JOIN roles r ON r.role_id = u.role_id
          JOIN contacts ct ON ct.contact_id = u.contact_id
          WHERE u.user_id = ?'

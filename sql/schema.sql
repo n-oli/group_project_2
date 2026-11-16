@@ -161,6 +161,17 @@ CREATE TABLE searches (
   FOREIGN KEY (song_id) REFERENCES songs(song_id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
+CREATE TABLE social_accounts (
+  social_account_id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id           INT NOT NULL,
+  provider          VARCHAR(20) NOT NULL,          -- 'google' (later 'facebook')
+  provider_user_id  VARCHAR(255) NOT NULL,         -- Google's permanent ID for this person
+  linked_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (provider, provider_user_id),            -- one Google account -> one user
+  UNIQUE (user_id, provider),                     -- one Google account per user
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- ===== Seed data =====
 -- The app expects exactly these two role names (see includes/auth.php).
 INSERT INTO roles (role_type) VALUES ('listener'), ('admin');
