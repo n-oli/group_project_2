@@ -65,16 +65,19 @@ login.php, register.php    Log-in and sign-up forms
 logout.php                 Ends the session (POST only)
 profile.php                "My account" page
 listener/index.php         Listener home page (the player will go here)
+listener/browse.php        Browse page to see the available music and play
 admin/index.php            Admin dashboard: counts, latest songs, all users
 admin/add_*.php            Admin forms to add an artist, album, or song
 includes/app.php           Helpers: app_url(), escape(), redirect_to(), CSRF
 includes/auth.php          current_user() and require_user('role')
 includes/db.php            Database connection ($pdo)
+includes/player.php        Playback engine for the music at the bottom of the browse page
 includes/header.php        Top of every page (Bootstrap + navbar)
 includes/footer.php        Bottom of every page
 includes/errors.php        Red box listing a form's $errors
 includes/upload.php        save_image(), save_music() function for music upload, photos and covers
 assets/style.css           Small custom styles on top of Bootstrap
+assets/player.js           JavaScript to control the browser playback engine and handle the event from the player.php
 sql/schema.sql             Creates the database
 tests/auth_flow.php        Automatic test of the login system
 ```
