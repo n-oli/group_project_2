@@ -49,6 +49,9 @@ require_once __DIR__ . '/app.php';
             <ul class="navbar-nav me-auto">
                 <?php if (!empty($user)): ?>
                     <li class="nav-item"><a class="nav-link" href="<?= escape(app_url(dashboard_path($user['role_type']))) ?>">Dashboard</a></li>
+                    <?php if ($user['role_type'] === 'listener'): ?>
+                        <li class="nav-item"><a class="nav-link" href="<?= escape(app_url('listener/browse.php')) ?>">Browse</a></li>
+                    <?php endif; ?>
                     <li class="nav-item"><a class="nav-link" href="<?= escape(app_url('profile.php')) ?>">My account</a></li>
                 <?php endif; ?>
             </ul>

@@ -16,7 +16,7 @@ require dirname(__DIR__) . '/includes/header.php';
     <p class="text-success text-uppercase fw-bold small mb-2">Listener dashboard</p>
     <h1 class="display-5 fw-bold">Welcome, <?= escape($user['first_name']) ?>!</h1>
     <p class="lead">Your Decibel account is ready.</p>
-    <p class="text-body-secondary">Music playback and library features are coming next.</p>
+    <a class="btn btn-success me-2" href="<?= escape(app_url('listener/browse.php')) ?>"><i class="bi bi-collection-play"></i> Browse music</a>
     <a class="btn btn-success" href="<?= escape(app_url('profile.php')) ?>"><i class="bi bi-person"></i> View my account</a>
 </div>
 <?php require dirname(__DIR__) . '/includes/footer.php'; ?>
