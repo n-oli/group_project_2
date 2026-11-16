@@ -2,3 +2,12 @@
    Keep this small: reach for a Bootstrap class first, add a rule here only when none fits. */
 .navbar-brand .bi { color: var(--bs-success); }
 details > summary { cursor: pointer; font-weight: 600; }
+/* Player bar (includes/player.php) */
+.player-info { min-width: 0; width: 14rem; }
+.player-volume { width: 9rem; }
+
+/* The bar is fixed to the bottom, so leave room under the page for it */
+body:has(#player) { padding-bottom: 7rem; }
+@media (max-width: 767px) {
+    body:has(#player) { padding-bottom: 12rem; }   /* the bar wraps onto more rows on phones */
+}
