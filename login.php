@@ -111,10 +111,12 @@ require __DIR__ . '/includes/header.php';
                     </div>
                     <button type="submit" class="btn btn-success w-100">Log in</button>
                 </form>
-                <div class="text-center text-secondary my-3">or</div>
-                <a href="<?= escape(app_url('oauth/google_start.php')) ?>" class="btn btn-outline-light w-100">
-                    <i class="bi bi-google me-2"></i>Continue with Google
-                </a>
+                <?php if (google_oauth_config() !== null): ?>
+                    <div class="text-center text-secondary my-3">or</div>
+                    <a href="<?= escape(app_url('oauth/google_start.php')) ?>" class="btn btn-outline-light w-100">
+                        <i class="bi bi-google me-2"></i>Continue with Google
+                    </a>
+                <?php endif; ?>
 
                 <p class="text-center mt-3 mb-0">No account yet? <a href="<?= escape(app_url('register.php')) ?>">Create one</a></p>
             </div>

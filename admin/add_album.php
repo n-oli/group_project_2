@@ -35,7 +35,9 @@ $genreNames  = array_column($genres, 'genre_name', 'genre_id');
 $errors = [];
 $old = ['album_name' => '', 'artist_id' => '', 'genre_id' => '', 'release_date' => '', 'total_tracks' => ''];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
+    $errors[] = 'Your form has expired. Please try again.';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Read every field named in $old from the submitted form, trimming spaces.
     foreach ($old as $key => $value) {
         $old[$key] = trim($_POST[$key] ?? '');
@@ -126,6 +128,7 @@ require __DIR__ . '/../includes/header.php';
 
                     <?php // enctype="multipart/form-data" is required for the cover image upload. ?>
                     <form method="post" action="add_album.php" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="<?= escape(csrf_token()) ?>">
                         <div class="row g-3">
                             <div class="col-12">
                                 <label for="album_name" class="form-label">Album name</label>

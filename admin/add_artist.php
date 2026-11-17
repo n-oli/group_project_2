@@ -23,7 +23,9 @@ $old = ['artist_name' => '', 'bio' => ''];
 
 // Only runs when the form was submitted. On a normal page visit (GET) we
 // skip straight to printing the empty form.
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
+    $errors[] = 'Your form has expired. Please try again.';
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $old['artist_name'] = trim($_POST['artist_name'] ?? '');
     $old['bio']         = trim($_POST['bio'] ?? '');
 
@@ -82,6 +84,7 @@ require __DIR__ . '/../includes/header.php';
 
                 <?php // enctype="multipart/form-data" is required for file uploads; without it the image never arrives. ?>
                 <form method="post" action="add_artist.php" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?= escape(csrf_token()) ?>">
                     <div class="mb-3">
                         <label for="artist_name" class="form-label">Artist name</label>
                         <input type="text" class="form-control" id="artist_name" name="artist_name"

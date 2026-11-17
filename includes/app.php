@@ -35,13 +35,13 @@ if (session_status() === PHP_SESSION_NONE) {
 // (str_replace turns Windows back-slashes into forward slashes.)
 $appDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
 
-// Pages inside admin/ or listener/ are one folder deeper
+// Pages inside admin/, listener/, or oauth/ are one folder deeper
 // ("/decibel/admin/index.php" -> "/decibel/admin"), so for those we go up one
 // level to get back to the app's root folder.
 // NOTE: if you add another sub-folder of pages (e.g. player/), add it to the
 // list below or links on those pages will point to the wrong place.
 $entryDirectory = realpath(dirname($_SERVER['SCRIPT_FILENAME']));
-if (in_array($entryDirectory, [realpath(__DIR__ . '/../admin'), realpath(__DIR__ . '/../listener')], true)) {
+if (in_array($entryDirectory, [realpath(__DIR__ . '/../admin'), realpath(__DIR__ . '/../listener'), realpath(__DIR__ . '/../oauth')], true)) {
     $appDirectory = dirname($appDirectory);
 }
 
@@ -82,6 +82,31 @@ function redirect_to($path)
 function dashboard_path($role)
 {
     return $role === 'admin' ? 'admin/index.php' : 'listener/index.php';
+}
+
+// The private OAuth file is optional. The example placeholders are not usable
+// credentials, so only show Google sign-in when real values were supplied.
+function google_oauth_config()
+{
+    $path = __DIR__ . '/oauth_config.php';
+    if (!is_file($path)) {
+        return null;
+    }
+
+    $settings = require $path;
+    $google = is_array($settings) ? ($settings['google'] ?? null) : null;
+    if (!is_array($google)) {
+        return null;
+    }
+
+    foreach (['client_id', 'client_secret', 'redirect_uri'] as $key) {
+        if (!isset($google[$key]) || !is_string($google[$key])
+            || trim($google[$key]) === '' || str_starts_with($google[$key], 'PASTE-')) {
+            return null;
+        }
+    }
+
+    return $google;
 }
 
 // --- 3. CSRF protection ------------------------------------------------------

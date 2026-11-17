@@ -6,6 +6,6 @@ return [
     'google' => [
         'client_id'     => 'PASTE-CLIENT-ID.apps.googleusercontent.com',
         'client_secret' => 'PASTE-CLIENT-SECRET',
-        'redirect_uri'  => 'http://localhost/music_player/oauth/google_callback.php',
+        'redirect_uri'  => 'http://localhost/decibel/oauth/google_callback.php',
     ],
 ];
