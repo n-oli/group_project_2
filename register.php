@@ -240,10 +240,12 @@ require __DIR__ . '/includes/header.php';
                         </div>
                     </div>
                 </form>
-                <div class="text-center text-secondary my-3">or</div>
-                <a href="<?= escape(app_url('oauth/google_start.php')) ?>" class="btn btn-outline-light w-100">
-                    <i class="bi bi-google me-2"></i>Sign up with Google
-                </a>
+                <?php if (google_oauth_config() !== null): ?>
+                    <div class="text-center text-secondary my-3">or</div>
+                    <a href="<?= escape(app_url('oauth/google_start.php')) ?>" class="btn btn-outline-light w-100">
+                        <i class="bi bi-google me-2"></i>Sign up with Google
+                    </a>
+                <?php endif; ?>
 
                 <p class="text-center mt-3 mb-0">Already have an account? <a href="<?= escape(app_url('login.php')) ?>">Log in</a></p>
             </div>

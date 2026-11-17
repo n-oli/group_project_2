@@ -2,14 +2,17 @@
 require_once __DIR__ . '/../includes/auth.php';
 require __DIR__ . '/../includes/db.php';
 require __DIR__ . '/../includes/social_login.php';
-$config = (require __DIR__ . '/../includes/oauth_config.php')['google'];
 
 // Sends the user back to the login page with a message
 function fail(string $message): never
 {
     $_SESSION['oauth_error'] = $message;
-    header('Location: /music_player/login.php');
-    exit;
+    redirect_to('login.php');
+}
+
+$config = google_oauth_config();
+if ($config === null) {
+    fail('Google sign-in is not configured yet.');
 }
 
 // They clicked "Cancel" on Google's screen
@@ -54,5 +57,4 @@ try {
     fail($e->getMessage());
 }
 
-header('Location: /music_player/welcome.php');
-exit;
+redirect_to('welcome.php');

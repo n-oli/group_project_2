@@ -125,6 +125,9 @@ function exercise($base, $prefix, $db, $suffix)
     // account (it must be ignored).
     $form = $browser->request($path('register.php'));
     check($form['status'] === 200, 'Registration form failed');
+    if (!is_file(dirname(__DIR__) . '/includes/oauth_config.php')) {
+        check(!str_contains($form['body'], 'Sign up with Google'), 'Unconfigured Google sign-up was shown');
+    }
     check(str_contains($form['body'], $path('assets/style.css')), 'Incorrect stylesheet URL');
     check($browser->request($path('assets/style.css'))['status'] === 200, 'Stylesheet unavailable');
     $data = ['first_name' => '<script>alert(1)</script>', 'last_name' => 'Tester',
@@ -158,6 +161,13 @@ function exercise($base, $prefix, $db, $suffix)
     // 3. Login: wrong password refused, missing CSRF token refused, correct
     // login redirects to the listener dashboard with a NEW session id.
     $loginForm = $browser->request($path('login.php'));
+    if (!is_file(dirname(__DIR__) . '/includes/oauth_config.php')) {
+        check(!str_contains($loginForm['body'], 'Continue with Google'), 'Unconfigured Google sign-in was shown');
+        redirected($browser->request($path('oauth/google_start.php')), $path('login.php'));
+        check(str_contains($browser->request($path('login.php'))['body'], 'Google sign-in is not configured yet.'),
+            'Direct Google sign-in did not explain missing configuration');
+        redirected($browser->request($path('oauth/google_callback.php')), $path('login.php'));
+    }
     $login = ['username' => $data['username'], 'password' => 'wrong', 'csrf_token' => token($loginForm)];
     $wrong = $browser->request($path('login.php'), $login);
     check(str_contains($wrong['body'], 'Invalid username or password.'), 'Incorrect password was accepted');
@@ -191,6 +201,30 @@ function exercise($base, $prefix, $db, $suffix)
     redirected($browser->request($path('welcome.php')), $path('admin/index.php'));
     $admin = $browser->request($path('admin/index.php'));
     check($admin['status'] === 200 && str_contains($admin['body'], $data['email']) && str_contains($admin['body'], '&lt;script&gt;'), 'Admin directory or escaping failed');
+    // Admin forms reject requests before inserting rows or saving uploads.
+    $artistForm = $browser->request($path('admin/add_artist.php'));
+    check($artistForm['status'] === 200, 'Add artist form failed');
+    $artistToken = token($artistForm);
+    $artistCount = (int) $db->query('SELECT COUNT(*) FROM artists')->fetchColumn();
+    $invalidArtist = $browser->request($path('admin/add_artist.php'), ['artist_name' => 'CSRF test artist']);
+    check(str_contains($invalidArtist['body'], 'form has expired'), 'Add artist accepted missing CSRF token');
+    check((int) $db->query('SELECT COUNT(*) FROM artists')->fetchColumn() === $artistCount, 'Invalid artist form inserted a row');
+    $savedArtist = $browser->request($path('admin/add_artist.php'),
+        ['artist_name' => 'CSRF test artist', 'csrf_token' => $artistToken]);
+    check($savedArtist['status'] === 302 && $savedArtist['location'] === 'add_artist.php?added=CSRF+test+artist',
+        'Valid add artist form failed');
+
+    foreach (['album' => 'album_name', 'song' => 'song_title'] as $kind => $field) {
+        $page = $path("admin/add_$kind.php");
+        $form = $browser->request($page);
+        check($form['status'] === 200, "Add $kind form failed");
+        token($form);
+        $count = (int) $db->query("SELECT COUNT(*) FROM {$kind}s")->fetchColumn();
+        $invalid = $browser->request($page, [$field => "CSRF test $kind", 'artist_id' => '1']);
+        check(str_contains($invalid['body'], 'form has expired'), "Add $kind accepted missing CSRF token");
+        check((int) $db->query("SELECT COUNT(*) FROM {$kind}s")->fetchColumn() === $count,
+            "Invalid $kind form inserted a row");
+    }
     check($browser->request($path('listener/index.php'))['status'] === 403, 'Admin accessed listener-only page');
     redirected($browser->request($path('logout.php'), ['csrf_token' => token($admin)]), $path('login.php'));
     redirected($browser->request($path('profile.php')), $path('login.php'));

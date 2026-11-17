@@ -45,6 +45,18 @@ queries, password hashing, registration transaction, and music-player schema.
 `csc235_login/` remains a separate reference and is not required to run the app.
 Password recovery and music playback are not implemented yet.
 
+### Optional Google sign-in
+
+Google sign-in is hidden until it is configured. To enable it, copy
+`includes/oauth_config.example.php` to `includes/oauth_config.php` and replace
+the example client ID and secret with credentials from your Google OAuth client.
+Set `redirect_uri` to the exact public URL of `oauth/google_callback.php` for
+your installation (for the documented XAMPP path, that is
+`http://localhost/decibel/oauth/google_callback.php`). Register that same URL
+as an authorized redirect URI in the Google OAuth client. The private config
+file is ignored by Git; do not commit its secret. Local username/password login
+works without Google configuration.
+
 ### Authentication checks
 
 With PHP CLI and MariaDB running, run `php tests/auth_flow.php` from the repository.
