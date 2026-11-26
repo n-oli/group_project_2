@@ -71,6 +71,14 @@ $stmt = $pdo->prepare('SELECT search_query FROM searches WHERE user_id = ?
 $stmt->execute([$user['user_id']]);
 $recent = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
+// --- Which songs has this listener hearted? ---------------------------------
+// array_flip turns [3, 7] into [3 => 0, 7 => 1], so includes/song_table.php can
+// check isset($favoriteIds[$id]) instead of searching the whole list each row.
+$stmt = $pdo->prepare('SELECT song_id FROM favorites WHERE user_id = ?');
+$stmt->execute([$user['user_id']]);
+$favoriteIds = array_flip($stmt->fetchAll(PDO::FETCH_COLUMN));
+$returnTo = 'browse';
+
 $pageTitle = 'Browse';
 require dirname(__DIR__) . '/includes/header.php';
 ?>
@@ -113,33 +121,7 @@ require dirname(__DIR__) . '/includes/header.php';
     <?php if ($q !== ''): ?>
         <p class="text-body-secondary"><?= count($songs) ?> result<?= count($songs) === 1 ? '' : 's' ?> for "<?= escape($q) ?>"</p>
     <?php endif; ?>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead>
-                <tr><th></th><th>Title</th><th>Artist</th><th>Album</th><th>Length</th></tr>
-            </thead>
-            <tbody>
-                <?php foreach ($songs as $song): ?>
-                    <tr>
-                        <td>
-                            <?php // The data- attributes tell assets/player.js what to play. ?>
-                            <button type="button" class="btn btn-sm btn-success play-btn"
-                                    data-src="<?= escape(app_url($song['audio_file'])) ?>"
-                                    data-title="<?= escape($song['song_title']) ?>"
-                                    data-artist="<?= escape($song['artist_name']) ?>"
-                                    aria-label="Play <?= escape($song['song_title']) ?>">
-                                <i class="bi bi-play-fill"></i>
-                            </button>
-                        </td>
-                        <td><?= escape($song['song_title']) ?></td>
-                        <td><?= escape($song['artist_name']) ?></td>
-                        <td><?= escape($song['album_name'] ?? '—') ?></td>
-                        <td><?= sprintf('%d:%02d', intdiv($song['song_duration'], 60), $song['song_duration'] % 60) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+    <?php require dirname(__DIR__) . '/includes/song_table.php'; ?>
 <?php endif; ?>
 
 <?php require dirname(__DIR__) . '/includes/player.php'; ?>
