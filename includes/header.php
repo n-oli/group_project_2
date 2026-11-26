@@ -27,6 +27,17 @@ require_once __DIR__ . '/app.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= escape($pageTitle ?? 'Music Player') ?> | Decibel</title>
+     <script>
+        // Dark/light mode: use the theme the visitor picked last time (saved by
+        // assets/theme.js). It runs here, before the page is drawn, so a light-mode
+        // visitor never sees a flash of dark first. Dark stays the default.
+        try {
+            var savedTheme = localStorage.getItem('decibel-theme');
+            if (savedTheme === 'light' || savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            }
+        } catch (e) { /* storage blocked (private window): keep dark */ }
+    </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="<?= escape(app_url('assets/style.css')) ?>">
@@ -57,13 +68,20 @@ require_once __DIR__ . '/app.php';
             </ul>
             <?php // Right side: greeting + logout for logged-in users, otherwise log in / sign up. ?>
             <ul class="navbar-nav align-items-md-center">
+                <li class="nav-item">
+                    <?php // Dark/light switch. assets/theme.js sets the icon and handles the click. ?>
+                        <button type="button" id="theme-toggle" class="btn btn-link nav-link px-2 me-md-2"
+                            aria-label="Switch to light mode" title="Switch to light mode">
+                        <i class="bi bi-sun-fill"></i>
+                    </button>
+                </li>
                 <?php if (!empty($user)): ?>
                     <li class="nav-item"><span class="navbar-text me-md-3">Hi, <?= escape($user['username']) ?></span></li>
                     <li class="nav-item">
                         <!-- Logout is a POST form with a CSRF token, so a link or image can't log someone out -->
                         <form method="post" action="<?= escape(app_url('logout.php')) ?>" class="m-0">
                             <input type="hidden" name="csrf_token" value="<?= escape(csrf_token()) ?>">
-                            <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">Log out</button>
                         </form>
                     </li>
                 <?php else: ?>
