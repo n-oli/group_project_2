@@ -24,7 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && valid_csrf_token()
 // --- What did they search for? -----------------------------------------
 // GET is right for search: the URL can be bookmarked and refreshed.
 // mb_substr keeps it inside the VARCHAR(255) column.
-$q = trim(mb_substr($_GET['q'] ?? '', 0, 100));
+$rawQuery = $_GET['q'] ?? '';
+$q = trim(mb_substr(is_string($rawQuery) ? $rawQuery : '', 0, 100));
 
 // --- Find the songs ---------------------------------------------------------
 // Same query as before; when there is a search term, add a LIKE filter.

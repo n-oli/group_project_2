@@ -180,6 +180,8 @@ function exercise($base, $prefix, $db, $suffix)
     check($oldSession !== $browser->cookies['PHPSESSID'], 'Login did not regenerate session ID');
     $dashboard = $browser->request($path('listener/index.php'));
     check($dashboard['status'] === 200 && str_contains($dashboard['body'], '&lt;script&gt;'), 'Listener dashboard or HTML escaping failed');
+    $browse = $browser->request($path('listener/browse.php?q%5B%5D=Blue'));
+    check($browse['status'] === 200 && str_contains($browse['body'], 'Browse music'), 'Array query broke Browse');
     redirected($browser->request($path('welcome.php')), $path('listener/index.php'));
     redirected($browser->request($path('login.php')), $path('listener/index.php'));
 
@@ -252,7 +254,7 @@ function exercise($base, $prefix, $db, $suffix)
     $db->exec("DELETE ct FROM contacts ct LEFT JOIN users u ON u.contact_id=ct.contact_id WHERE u.user_id IS NULL");
     $db->exec("DELETE u FROM users u JOIN credentials c ON c.user_id=u.user_id WHERE c.username='other$suffix'");
     redirected($other->request($path('profile.php')), $path('login.php'));
-    echo 'PASS: ' . ($prefix ?: '/') . " registration, login, dashboards, profiles, roles, CSRF, logout, deleted accounts\n";
+    echo 'PASS: ' . ($prefix ?: '/') . " registration, login, search input, profiles, roles, CSRF, logout, deleted accounts\n";
 }
 
 $root = dirname(__DIR__);
