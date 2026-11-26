@@ -192,6 +192,66 @@ function exercise($base, $prefix, $db, $suffix)
     check(str_contains($profile['body'], $data['email']) && str_contains($profile['body'], '06515')
         && str_contains($profile['body'], '203-555-0100'), 'Profile details were not preserved');
 
+    // Playlist actions use the signed-in listener and leave other accounts' lists alone.
+    $list = $browser->request($path('listener/playlists.php'));
+    check($list['status'] === 200 && str_contains($list['body'], 'No playlists yet.'), 'New playlist list was not empty');
+    $actionPage = $path('listener/playlist_action.php');
+    check($browser->request($actionPage)['status'] === 405, 'Playlist action accepted GET');
+    $create = ['action' => 'create', 'playlist_name' => "Road Trip $suffix", 'csrf_token' => token($list)];
+    $missingToken = $create;
+    unset($missingToken['csrf_token']);
+    check($browser->request($actionPage, $missingToken)['status'] === 403, 'Playlist accepted missing CSRF token');
+    check($browser->request($actionPage, array_replace($create, ['playlist_name' => '']))['status'] === 400,
+        'Playlist accepted an empty name');
+    check((int) $db->query('SELECT COUNT(*) FROM playlists')->fetchColumn() === 0, 'Invalid form created a playlist');
+    $created = $browser->request($actionPage, $create);
+    $findPlaylist = $db->prepare('SELECT playlist_id FROM playlists WHERE playlist_name = ?');
+    $findPlaylist->execute(["Road Trip $suffix"]);
+    $playlistId = (int) $findPlaylist->fetchColumn();
+    check($playlistId > 0, 'Playlist was not saved');
+    $detailPage = $path('listener/playlist.php?id=' . $playlistId);
+    redirected($created, $detailPage);
+    $detail = $browser->request($detailPage);
+    check($detail['status'] === 200 && str_contains($detail['body'], 'This playlist is empty.'), 'Empty playlist page failed');
+
+    $db->exec("INSERT INTO artists (artist_name) VALUES ('Playlist test artist')");
+    $artistId = (int) $db->lastInsertId();
+    $addSong = $db->prepare('INSERT INTO songs (song_title, artist_id, song_duration, audio_file) VALUES (?, ?, ?, ?)');
+    $songTitle = "Playlist test song $suffix";
+    $addSong->execute([$songTitle, $artistId, 75, 'test_music/reinhold2025-open-spaces-437299.mp3']);
+    $songId = (int) $db->lastInsertId();
+    $songAction = ['action' => 'add_song', 'playlist_id' => $playlistId, 'song_id' => $songId,
+        'csrf_token' => token($detail)];
+    check($browser->request($actionPage, array_replace($songAction, ['song_id' => 999999]))['status'] === 404,
+        'Playlist accepted a missing song');
+    redirected($browser->request($actionPage, $songAction), $detailPage);
+    redirected($browser->request($actionPage, $songAction), $detailPage);
+    $countSongs = $db->prepare('SELECT COUNT(*) FROM playlist_songs WHERE playlist_id = ?');
+    $countSongs->execute([$playlistId]);
+    check((int) $countSongs->fetchColumn() === 1, 'Duplicate song was added to a playlist');
+    $detail = $browser->request($detailPage);
+    check(str_contains($detail['body'], $songTitle) && str_contains($detail['body'], 'play-btn'), 'Playlist song or player was missing');
+    $removeSong = array_replace($songAction, ['action' => 'remove_song']);
+    redirected($browser->request($actionPage, $removeSong), $detailPage);
+    redirected($browser->request($actionPage, $removeSong), $detailPage);
+    $countSongs->execute([$playlistId]);
+    check((int) $countSongs->fetchColumn() === 0, 'Removing a song twice failed');
+    redirected($browser->request($actionPage, $songAction), $detailPage);
+    $secondTitle = "Second playlist song $suffix";
+    $addSong->execute([$secondTitle, $artistId, 85, 'test_music/jonasblakewood-sport-opening-sport-opening-music-567331.mp3']);
+    $secondSongId = (int) $db->lastInsertId();
+    redirected($browser->request($actionPage, array_replace($songAction, ['song_id' => $secondSongId])), $detailPage);
+    $ordered = $browser->request($detailPage)['body'];
+    $firstPosition = strpos($ordered, $songTitle);
+    $secondPosition = strpos($ordered, $secondTitle);
+    check($firstPosition !== false && $secondPosition !== false && $firstPosition < $secondPosition,
+        'Playlist did not keep song order');
+    $rename = ['action' => 'rename', 'playlist_id' => $playlistId,
+        'playlist_name' => '<script>Road Trip</script>', 'csrf_token' => token($detail)];
+    redirected($browser->request($actionPage, $rename), $detailPage);
+    $detail = $browser->request($detailPage);
+    check(str_contains($detail['body'], '&lt;script&gt;Road Trip&lt;/script&gt;'), 'Playlist name was not escaped');
+
     // 5. Logout: opening the URL (GET) must not log out; a POST without the token is refused.
     redirected($browser->request($path('logout.php')), $path('welcome.php'));
     check($browser->request($path('profile.php'))['status'] === 200, 'GET logged user out');
@@ -228,6 +288,8 @@ function exercise($base, $prefix, $db, $suffix)
             "Invalid $kind form inserted a row");
     }
     check($browser->request($path('listener/index.php'))['status'] === 403, 'Admin accessed listener-only page');
+    check($browser->request($detailPage)['status'] === 403, 'Admin accessed a listener playlist');
+    check($browser->request($actionPage, $removeSong)['status'] === 403, 'Admin changed a listener playlist');
     redirected($browser->request($path('logout.php'), ['csrf_token' => token($admin)]), $path('login.php'));
     redirected($browser->request($path('profile.php')), $path('login.php'));
     $login['csrf_token'] = token($browser->request($path('login.php')));
@@ -250,11 +312,26 @@ function exercise($base, $prefix, $db, $suffix)
     $profile = $other->request($path('profile.php'));
     check(str_contains($profile['body'], $data['email']) && !str_contains($profile['body'], "listener$suffix@example.test"), 'Profile exposed another account');
 
+    $otherList = $other->request($path('listener/playlists.php'));
+    check(str_contains($otherList['body'], 'No playlists yet.'), 'Another listener saw a private playlist');
+    check($other->request($detailPage)['status'] === 404, 'Another listener opened a private playlist');
+    $otherAction = array_replace($rename, ['csrf_token' => token($otherList), 'action' => 'delete']);
+    check($other->request($actionPage, $otherAction)['status'] === 404, 'Another listener deleted a private playlist');
+    check($other->request($actionPage, array_replace($otherAction, ['action' => 'rename']))['status'] === 404,
+        'Another listener renamed a private playlist');
+    check(str_contains($browser->request($detailPage)['body'], $songTitle), 'Another listener changed a private playlist');
+    $delete = ['action' => 'delete', 'playlist_id' => $playlistId,
+        'csrf_token' => token($browser->request($detailPage))];
+    redirected($browser->request($actionPage, $delete), $path('listener/playlists.php'));
+    $countSongs->execute([$playlistId]);
+    check((int) $countSongs->fetchColumn() === 0, 'Deleting a playlist left membership rows');
+    check($browser->request($detailPage)['status'] === 404, 'Deleted playlist still opened');
+
     // Delete the second account while it is logged in: its session must stop working.
     $db->exec("DELETE ct FROM contacts ct LEFT JOIN users u ON u.contact_id=ct.contact_id WHERE u.user_id IS NULL");
     $db->exec("DELETE u FROM users u JOIN credentials c ON c.user_id=u.user_id WHERE c.username='other$suffix'");
     redirected($other->request($path('profile.php')), $path('login.php'));
-    echo 'PASS: ' . ($prefix ?: '/') . " registration, login, search input, profiles, roles, CSRF, logout, deleted accounts\n";
+    echo 'PASS: ' . ($prefix ?: '/') . " registration, login, search input, playlists, roles, CSRF, logout, deleted accounts\n";
 }
 
 $root = dirname(__DIR__);
