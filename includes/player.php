@@ -21,13 +21,13 @@
 
         <?php // Previous / Play-Pause / Next ?>
         <div class="btn-group" role="group" aria-label="Playback controls">
-            <button type="button" id="btn-prev" class="btn btn-outline-light" aria-label="Previous">
+            <button type="button" id="btn-prev" class="btn btn-outline-secondary" aria-label="Previous">
                 <i class="bi bi-skip-start-fill"></i>
             </button>
             <button type="button" id="btn-play" class="btn btn-success" aria-label="Play">
                 <i class="bi bi-play-fill"></i>
             </button>
-            <button type="button" id="btn-next" class="btn btn-outline-light" aria-label="Next">
+            <button type="button" id="btn-next" class="btn btn-outline-secondary" aria-label="Next">
                 <i class="bi bi-skip-end-fill"></i>
             </button>
         </div>
