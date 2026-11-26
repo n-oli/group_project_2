@@ -34,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
     }
 
     if (!$errors) {
+        $imagePath = null;
         try {
             // save_image() (includes/upload.php) checks and stores the photo. It returns
             // the path to save, null if no photo was chosen, or throws a RuntimeException
@@ -50,6 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
             header('Location: add_artist.php?added=' . urlencode($old['artist_name']));
             exit;
         } catch (PDOException $e) {
+            if ($imagePath !== null) {
+                @unlink(__DIR__ . '/../' . $imagePath);
+            }
             // Database problem: show a general message, never the raw SQL error.
             $errors[] = 'Could not save the artist. Please try again.';
         } catch (RuntimeException $e) {

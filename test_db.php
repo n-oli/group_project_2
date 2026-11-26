@@ -1,10 +1,10 @@
 <?php
 /**
- * test_db.php - quick check that PHP can reach the database.
- * Open it in the browser: if you see a list of genres, the connection in
- * includes/db.php works and sql/schema.sql has been imported.
- * DEBUG ONLY: it needs no login. Delete it before the final submission.
+ * test_db.php - admin-only check that PHP can reach the database.
+ * A genre list confirms the connection and schema are available.
  */
+require __DIR__ . '/includes/auth.php';
+require_user('admin');
 require __DIR__ . '/includes/db.php';
 
 $genres = $pdo->query('SELECT genre_id, genre_name FROM genres ORDER BY genre_name')->fetchAll();

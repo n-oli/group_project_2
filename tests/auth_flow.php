@@ -90,6 +90,34 @@ class Browser
         check(!preg_match('/(?:Fatal error|Warning:|Deprecated:)/', $body), "PHP error on $path: $body");
         return $result;
     }
+
+    public function upload($path, $data, $files)
+    {
+        foreach ($files as $field => $file) {
+            $data[$field] = new CURLFile($file[0], $file[1], $file[2]);
+        }
+        $curl = curl_init($this->base . $path);
+        curl_setopt_array($curl, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $data,
+            CURLOPT_COOKIE => implode('; ', array_map(
+                fn($name, $value) => "$name=$value", array_keys($this->cookies), $this->cookies)),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_TIMEOUT => 10,
+        ]);
+        $response = curl_exec($curl);
+        check($response !== false, 'Could not upload to ' . $path . ': ' . curl_error($curl));
+        $headerSize = curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        curl_close($curl);
+        $headers = substr($response, 0, $headerSize);
+        $body = substr($response, $headerSize);
+        preg_match('/^Location: (.+)$/mi', $headers, $location);
+        check(!preg_match('/(?:Fatal error|Warning:|Deprecated:)/', $body), "PHP error on $path: $body");
+        return ['status' => $status, 'body' => $body, 'location' => trim($location[1] ?? '')];
+    }
 }
 
 // Pull the hidden CSRF token out of a page's HTML so the robot can send it
@@ -116,7 +144,7 @@ function exercise($base, $prefix, $db, $suffix)
     $path = fn($page) => $prefix . '/' . $page;
 
     // 1. Logged-out visitors are sent to the login page from every protected page.
-    foreach (['welcome.php', 'profile.php', 'admin/index.php', 'listener/index.php'] as $page) {
+    foreach (['welcome.php', 'profile.php', 'admin/index.php', 'listener/index.php', 'test_db.php'] as $page) {
         redirected($browser->request($path($page)), $path('login.php'));
     }
 
@@ -180,8 +208,36 @@ function exercise($base, $prefix, $db, $suffix)
     check($oldSession !== $browser->cookies['PHPSESSID'], 'Login did not regenerate session ID');
     $dashboard = $browser->request($path('listener/index.php'));
     check($dashboard['status'] === 200 && str_contains($dashboard['body'], '&lt;script&gt;'), 'Listener dashboard or HTML escaping failed');
+    check($browser->request($path('test_db.php'))['status'] === 403, 'Listener opened the database check');
     $browse = $browser->request($path('listener/browse.php?q%5B%5D=Blue'));
     check($browse['status'] === 200 && str_contains($browse['body'], 'Browse music'), 'Array query broke Browse');
+    $db->exec("INSERT INTO artists (artist_name) VALUES ('Catalog test artist')");
+    $catalogArtist = (int) $db->lastInsertId();
+    $catalogSong = $db->prepare('INSERT INTO songs (song_title, artist_id, song_duration, audio_file) VALUES (?, ?, 60, ?)');
+    for ($number = 1; $number <= 26; $number++) {
+        $catalogSong->execute([sprintf('Catalog %s item %02d', $suffix, $number), $catalogArtist,
+            'test_music/jonasblakewood-sport-opening-sport-opening-music-567331.mp3']);
+    }
+    $catalogSong->execute(["100% Real $suffix", $catalogArtist,
+        'test_music/jonasblakewood-sport-opening-sport-opening-music-567331.mp3']);
+    $searchPath = $path('listener/browse.php?q=' . urlencode("Catalog $suffix item"));
+    $firstPage = $browser->request($searchPath);
+    check($firstPage['status'] === 200 && str_contains($firstPage['body'], '26 results')
+        && str_contains($firstPage['body'], 'Page 1 of 2')
+        && substr_count($firstPage['body'], 'class="btn btn-sm btn-success play-btn"') === 25
+        && !str_contains($firstPage['body'], "Catalog $suffix item 26"), 'First Browse page was not limited');
+    $secondPage = $browser->request($searchPath . '&page=2');
+    check($secondPage['status'] === 200 && str_contains($secondPage['body'], "Catalog $suffix item 26")
+        && str_contains($secondPage['body'], 'Page 2 of 2')
+        && substr_count($secondPage['body'], 'class="btn btn-sm btn-success play-btn"') === 1,
+        'Second Browse page failed');
+    check(str_contains($browser->request($searchPath . '&page%5B%5D=2')['body'], 'Page 1 of 2'),
+        'Invalid page value broke Browse');
+    check(str_contains($browser->request($path('listener/browse.php?q=No+matching+song'))['body'], 'No songs match'),
+        'Empty search did not show its message');
+    $literalPercent = $browser->request($path('listener/browse.php?q=' . urlencode("100% Real $suffix")));
+    check(str_contains($literalPercent['body'], "100% Real $suffix")
+        && str_contains($literalPercent['body'], '1 result'), 'Literal percent search failed');
     redirected($browser->request($path('welcome.php')), $path('listener/index.php'));
     redirected($browser->request($path('login.php')), $path('listener/index.php'));
 
@@ -263,6 +319,7 @@ function exercise($base, $prefix, $db, $suffix)
     redirected($browser->request($path('welcome.php')), $path('admin/index.php'));
     $admin = $browser->request($path('admin/index.php'));
     check($admin['status'] === 200 && str_contains($admin['body'], $data['email']) && str_contains($admin['body'], '&lt;script&gt;'), 'Admin directory or escaping failed');
+    check($browser->request($path('test_db.php'))['status'] === 200, 'Admin database check failed');
     // Admin forms reject requests before inserting rows or saving uploads.
     $artistForm = $browser->request($path('admin/add_artist.php'));
     check($artistForm['status'] === 200, 'Add artist form failed');
@@ -286,6 +343,38 @@ function exercise($base, $prefix, $db, $suffix)
         check(str_contains($invalid['body'], 'form has expired'), "Add $kind accepted missing CSRF token");
         check((int) $db->query("SELECT COUNT(*) FROM {$kind}s")->fetchColumn() === $count,
             "Invalid $kind form inserted a row");
+    }
+
+    // Reject database inserts after valid uploads to check that files are cleaned up.
+    $imageFile = tempnam(sys_get_temp_dir(), 'decibel-image-');
+    file_put_contents($imageFile, base64_decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lT8AAAAASUVORK5CYII='
+    ));
+    try {
+        $uploadCases = [
+            'artist' => ['artists', 'profile_image', $imageFile, 'image/png', 'sample.png',
+                ['artist_name' => 'Rejected artist']],
+            'album' => ['albums', 'cover_art', $imageFile, 'image/png', 'sample.png',
+                ['album_name' => 'Rejected album', 'artist_id' => $catalogArtist]],
+            'song' => ['songs', 'audio_file', dirname(__DIR__) . '/test_music/jonasblakewood-sport-opening-sport-opening-music-567331.mp3',
+                'audio/mpeg', 'sample.mp3', ['song_title' => 'Rejected song', 'artist_id' => $catalogArtist,
+                    'minutes' => '1', 'seconds' => '0']],
+        ];
+        foreach ($uploadCases as $kind => [$folder, $field, $file, $mime, $filename, $fields]) {
+            $db->exec("CREATE TRIGGER reject_{$kind}_test BEFORE INSERT ON {$folder}
+                       FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Test insert failure'");
+            $directory = dirname(__DIR__) . '/uploads/' . $folder;
+            $before = count(glob($directory . '/*') ?: []);
+            $page = $path("admin/add_$kind.php");
+            $fields['csrf_token'] = token($browser->request($page));
+            $result = $browser->upload($page, $fields, [$field => [$file, $mime, $filename]]);
+            check($result['status'] === 200 && str_contains($result['body'], "Could not save the $kind"),
+                "Rejected $kind insert did not show its error");
+            check(count(glob($directory . '/*') ?: []) === $before, "Rejected $kind insert left an uploaded file");
+            $db->exec("DROP TRIGGER reject_{$kind}_test");
+        }
+    } finally {
+        unlink($imageFile);
     }
     check($browser->request($path('listener/index.php'))['status'] === 403, 'Admin accessed listener-only page');
     check($browser->request($detailPage)['status'] === 403, 'Admin accessed a listener playlist');
@@ -331,7 +420,7 @@ function exercise($base, $prefix, $db, $suffix)
     $db->exec("DELETE ct FROM contacts ct LEFT JOIN users u ON u.contact_id=ct.contact_id WHERE u.user_id IS NULL");
     $db->exec("DELETE u FROM users u JOIN credentials c ON c.user_id=u.user_id WHERE c.username='other$suffix'");
     redirected($other->request($path('profile.php')), $path('login.php'));
-    echo 'PASS: ' . ($prefix ?: '/') . " registration, login, search input, playlists, roles, CSRF, logout, deleted accounts\n";
+    echo 'PASS: ' . ($prefix ?: '/') . " registration, login, paged search, playlists, upload cleanup, admin database check, roles, CSRF, logout, deleted accounts\n";
 }
 
 $root = dirname(__DIR__);
