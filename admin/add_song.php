@@ -13,8 +13,7 @@
  * Things that are special about songs:
  * - The length is typed as minutes + seconds but stored as total seconds.
  * - If an album is chosen it must belong to the chosen artist.
- * - There is no audio file upload yet. The songs table has no column for the
- * file either, so that is the next thing to build before a player can work.
+ * - Audio is required and saved under uploads/songs.
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
@@ -85,7 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
     }
 
     if (!$errors) {
-                try {
+        $audioPath = null;
+        try {
             // Stores the audio file first
             $audioPath = save_audio('audio_file', 'songs');
             if ($audioPath === null) {
@@ -109,6 +109,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
             header('Location: add_song.php?added=' . urlencode($old['song_title']));
             exit;
         } catch (PDOException $e) {
+            // Keep a new upload only when its song row was saved.
+            if ($audioPath !== null) {
+                @unlink(__DIR__ . '/../' . $audioPath);
+            }
             $errors[] = 'Could not save the song. Please try again.';
         } catch (RuntimeException $e) {
             $errors[] = $e->getMessage(); // upload problems from save_audio()

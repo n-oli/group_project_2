@@ -65,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
     }
 
     if (!$errors) {
+        $coverPath = null;
         try {
             // Store the cover (if any) and get back the path to save. See includes/upload.php.
             $coverPath = save_image('cover_art', 'albums');
@@ -89,6 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !valid_csrf_token()) {
             header('Location: add_album.php?added=' . urlencode($old['album_name']));
             exit;
         } catch (PDOException $e) {
+            if ($coverPath !== null) {
+                @unlink(__DIR__ . '/../' . $coverPath);
+            }
             $errors[] = 'Could not save the album. Please try again.';
         } catch (RuntimeException $e) {
             $errors[] = $e->getMessage();

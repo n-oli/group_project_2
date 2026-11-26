@@ -1,6 +1,6 @@
 <?php
 /**
- * listener/browse.php - lists every song that has an audio file, with a Play
+ * listener/browse.php - lists playable songs in pages, with a Play
  * button on each row. The player bar at the bottom (includes/player.php)
  * plays them. Only listeners can open this page.
  *
@@ -28,11 +28,8 @@ $rawQuery = $_GET['q'] ?? '';
 $q = trim(mb_substr(is_string($rawQuery) ? $rawQuery : '', 0, 100));
 
 // --- Find the songs ---------------------------------------------------------
-// Same query as before; when there is a search term, add a LIKE filter.
 // LIKE '%burna%' means "contains burna" (not case-sensitive in our database).
-$sql = 'SELECT s.song_id, s.song_title, s.song_duration, s.audio_file,
-               a.artist_name, al.album_name
-        FROM songs s
+$fromSql = 'FROM songs s
         JOIN artists a      ON a.artist_id = s.artist_id
         LEFT JOIN albums al ON al.album_id = s.album_id
         LEFT JOIN genres g  ON g.genre_id  = s.genre_id
@@ -43,14 +40,30 @@ if ($q !== '') {
     // % and _ are wildcards in LIKE. addcslashes() puts a \ in front of them so
     // a search for "100%" looks for a real % sign instead of matching everything.
     $like = '%' . addcslashes($q, '\\%_') . '%';
-    $sql .= ' AND (s.song_title LIKE ? OR a.artist_name LIKE ?
-                   OR al.album_name LIKE ? OR g.genre_name LIKE ?)';
+    $fromSql .= ' AND (s.song_title LIKE ? OR a.artist_name LIKE ?
+                       OR al.album_name LIKE ? OR g.genre_name LIKE ?)';
     $params = [$like, $like, $like, $like];
 }
-$sql .= ' ORDER BY a.artist_name, s.song_title';
 
+$count = $pdo->prepare('SELECT COUNT(*) ' . $fromSql);
+$count->execute($params);
+$totalSongs = (int) $count->fetchColumn();
+$perPage = 25;
+$totalPages = max(1, (int) ceil($totalSongs / $perPage));
+$requestedPage = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+$page = min($requestedPage ?: 1, $totalPages);
+
+$sql = 'SELECT s.song_id, s.song_title, s.song_duration, s.audio_file,
+               a.artist_name, al.album_name ' . $fromSql .
+       ' ORDER BY a.artist_name, s.song_title, s.song_id LIMIT ? OFFSET ?';
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params);
+$position = 1;
+foreach ($params as $param) {
+    $stmt->bindValue($position++, $param);
+}
+$stmt->bindValue($position++, $perPage, PDO::PARAM_INT);
+$stmt->bindValue($position, ($page - 1) * $perPage, PDO::PARAM_INT);
+$stmt->execute();
 $songs = $stmt->fetchAll();
 
 // --- Save the search -------------------------------------------------------
@@ -120,7 +133,22 @@ require dirname(__DIR__) . '/includes/header.php';
     <div class="alert alert-info">No songs yet. Ask an admin to add some.</div>
 <?php else: ?>
     <?php if ($q !== ''): ?>
-        <p class="text-body-secondary"><?= count($songs) ?> result<?= count($songs) === 1 ? '' : 's' ?> for "<?= escape($q) ?>"</p>
+        <p class="text-body-secondary"><?= $totalSongs ?> result<?= $totalSongs === 1 ? '' : 's' ?> for "<?= escape($q) ?>"</p>
+    <?php endif; ?>
+    <?php if ($totalPages > 1): ?>
+        <nav class="d-flex justify-content-between align-items-center mb-3" aria-label="Song pages">
+            <?php if ($page > 1): ?>
+                <a href="<?= escape(app_url('listener/browse.php') . '?' . http_build_query(['q' => $q, 'page' => $page - 1])) ?>">&larr; Previous</a>
+            <?php else: ?>
+                <span></span>
+            <?php endif; ?>
+            <span>Page <?= $page ?> of <?= $totalPages ?></span>
+            <?php if ($page < $totalPages): ?>
+                <a href="<?= escape(app_url('listener/browse.php') . '?' . http_build_query(['q' => $q, 'page' => $page + 1])) ?>">Next &rarr;</a>
+            <?php else: ?>
+                <span></span>
+            <?php endif; ?>
+        </nav>
     <?php endif; ?>
     <?php require dirname(__DIR__) . '/includes/song_table.php'; ?>
 <?php endif; ?>
