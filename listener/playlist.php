@@ -118,7 +118,7 @@ require dirname(__DIR__) . '/includes/header.php';
             <div class="input-group">
                 <input type="text" class="form-control" id="rename_playlist" name="playlist_name"
                        value="<?= escape($playlist['playlist_name']) ?>" maxlength="100" required>
-                <button type="submit" class="btn btn-outline-light">Save</button>
+                <button type="submit" class="btn btn-outline-secondary">Save</button>
             </div>
         </form>
     </div>
