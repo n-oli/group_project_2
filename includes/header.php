@@ -61,6 +61,7 @@ require_once __DIR__ . '/app.php';
                 <?php if (!empty($user)): ?>
                     <li class="nav-item"><a class="nav-link" href="<?= escape(app_url(dashboard_path($user['role_type']))) ?>">Dashboard</a></li>
                     <?php if ($user['role_type'] === 'listener'): ?>
+                        <li class="nav-item"><a class="nav-link" href="<?= escape(app_url('listener/playlists.php')) ?>">Playlists</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= escape(app_url('listener/browse.php')) ?>">Browse</a></li>
                         <li class="nav-item"><a class="nav-link" href="<?= escape(app_url('listener/favorites.php')) ?>">Favorites</a></li>
                     <?php endif; ?>
